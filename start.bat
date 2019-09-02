@@ -1,0 +1,1 @@
+start tic80.exe %~dp0tetrawall.tic -code-watch %~dp0tetrawall.lua
