@@ -4,6 +4,39 @@
 -- script: lua
 -- input:  mouse
 
+maxX = 29
+maxY = 15
+maxXpix = (maxX + 1) * 8
+maxYpix = (maxY + 1) * 8
+
+function createTetrisShapes()
+    local s = {}
+    -- XXX
+    --  X
+    s[0] = {{x = 0, y = 0}, {x = 1, y = 0}, {x = 2, y = 0}, {x = 1, y = 1}}
+    -- XX
+    -- XX
+    s[1] = {{x = 0, y = 0}, {x = 1, y = 0}, {x = 0, y = 1}, {x = 1, y = 1}}
+    -- XXXX
+    s[2] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 1, y = 0}, {x = 2, y = 0}}
+    -- XX
+    --  XX
+    s[3] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 0, y = 1}, {x = 1, y = 1}}
+    --  XX
+    -- XX
+    s[4] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 0, y = -1}, {x = 1, y = -1}}
+    -- XXX
+    --   X
+    s[5] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 1, y = 0}, {x = 1, y = 1}}
+    --   X
+    -- XXX
+    s[6] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 1, y = 0}, {x = 1, y = -1}}
+
+    return s
+end
+
+tetrisShapes = createTetrisShapes()
+
 function rand_v_dir()
     vx = math.random()
     vy = math.random()
@@ -27,8 +60,8 @@ function createBall(map, score)
     local velocityx, velocityy = rand_v_dir()
 
     return {
-        x = math.random(180,230),
-        y = math.random(10,126),
+        x = math.random((maxXpix / 4) * 3, maxXpix - 10),
+        y = math.random(10, maxYpix - 10),
         speed = 1,
         velx = velocityx,
         vely = velocityy,
@@ -38,8 +71,8 @@ function createBall(map, score)
 
             if self.x <= 3 then self.velx = -self.velx end
             if self.y <= 3 then self.vely = -self.vely end
-            if self.x >= 240 - 3 then self.velx = -self.velx end
-            if self.y >= 136 - 3 then self.vely = -self.vely end
+            if self.x >= maxXpix - 3 then self.velx = -self.velx end
+            if self.y >= maxYpix - 3 then self.vely = -self.vely end
 
             if map[self.x // 8][self.y // 8] then
                 score:add()
@@ -51,28 +84,37 @@ function createBall(map, score)
             end
         end,
         draw = function(self)
-            circ(self.x, self.y, 2, 14)
+            spr(2, self.x-5, self.y-5, 0)
         end
     }
 end
 
-function createTarget(balls, score) -- I am not sure if this is passed by reference or value
-    local radius = 5
-    local startTime = time()
+function createTarget(balls, map, score)
+    local wallProgress = 80
+    local wallTime = time()
+    local ballProgress = 80
+    local ballTime = time()
     local ready = true
     return {
-        x = math.random(20,50),
-        y = math.random(20,116),
+        x = math.random(20, maxXpix / 4),
+        y = math.random(20, maxYpix - 20),
         isReady = function(self)
-            return radius == 5
+            return wallProgress == 80
         end,
         start = function(self)
-            radius = 0
-            startTime = time()
+            wallProgress = 0
+            wallTime = time()
         end,
         update = function(self)
-            if radius < 5 then
-                radius = math.floor(((time()-startTime)/300)%6)
+            if ballProgress < 80 then
+                ballProgress = math.min(math.floor(((time()-ballTime)/100)), 80)
+            else
+                ballProgress = 0
+                ballTime = time()
+                balls[#balls + 1] = createBall(map, score)
+            end
+            if wallProgress < 80 then
+                wallProgress = math.min(math.floor(((time()-wallTime)/15)), 80)
             end
             for _,ball in pairs(balls) do
                 -- TODO: Calculate distance properly and like these circular things are squares
@@ -82,15 +124,23 @@ function createTarget(balls, score) -- I am not sure if this is passed by refere
             end
         end,
         draw = function(self)
-            circb(self.x, self.y, 5, 14)
-            circ(self.x, self.y, radius, 14)
+            local i = 96 + (2 * (math.floor(time()/100) % 8))
+            spr(i, self.x-7, self.y-7, 0, 1, 0, 0, 2, 2)
+
+            rect(0, maxYpix, wallProgress, 8, 9)
+            rectb(0, maxYpix, 80, 8, 3)
+            print("NEXT WALL", 2, maxYpix + 1)
+
+            rect(80, maxYpix, ballProgress, 8, 6)
+            rectb(80, maxYpix, 80, 8, 3)
+            print("NEXT BALL", 82, maxYpix + 1)
         end
     }
 end
 
 function createUser(map, tetrisShapes, target)
     local drawSquare = function(sprite, x, y)
-        if x > 29 or x < 0 or y > 16 or y < 0 then return end
+        if x > maxX or x < 0 or y > maxY or y < 0 then return end
         if map[x][y] then
             spr(sprite - 1, x * 8, y * 8)
         else
@@ -99,10 +149,11 @@ function createUser(map, tetrisShapes, target)
     end
 
     local isSquareBlocked = function(x, y)
-        return x > 29 or x < 0 or y > 16 or y < 0 or map[x][y]
+        return x > maxX or x < 0 or y > maxY or y < 0 or map[x][y]
     end
 
     local currentShape = 3;
+    local canDraw = target:isReady()
 
     return {
         x = 0,
@@ -113,9 +164,10 @@ function createUser(map, tetrisShapes, target)
         prevLeft = true,
         free = true,
         update = function(self)
+            canDraw = target:isReady()
             local x, y, left, middle, right = mouse()
-            self.out = (x > 240) or (y > 136)
-            if self.out or not target:isReady() then return end
+            self.out = (x > maxXpix) or (y > maxYpix)
+            if self.out or not canDraw then return end
 
             self.x = (x // 8)
             self.y = (y // 8)
@@ -136,6 +188,7 @@ function createUser(map, tetrisShapes, target)
             if left and self.free then
                 if not self.prevLeft then
                     self.prevLeft = true
+                    canDraw = false
                     target:start()
                     for _, square in pairs(tetrisShapes[currentShape]) do
                         if self.rotation == 0 then
@@ -164,7 +217,7 @@ function createUser(map, tetrisShapes, target)
             end
         end,
         draw = function(self)
-            if self.out or not target:isReady() then return end
+            if self.out or not canDraw then return end
             local index = 1
             if not self.free then index = index + 16 end
             for _, square in pairs(tetrisShapes[currentShape]) do
@@ -182,42 +235,38 @@ function createUser(map, tetrisShapes, target)
     }
 end
 
-function createScore()
+function createScore(balls)
     local score = 0
     return {
         getScore = function()
             return score
         end,
         add = function()
-            score = score + 1
+            score = score + #balls
         end,
         update = function()
         end,
         draw = function()
-            print("Score: " .. score, 0, 0, 15)
+            local str = "Score: " .. score
+            local w = print(str, 0, -20)
+            print(str, maxXpix - w, maxYpix + 1)
         end
     }
 end
 
 function createGameScene()
-    local tetrisShapes = {}
-    tetrisShapes[0] = {{x = 0, y = 0}, {x = 1, y = 0}, {x = 2, y = 0}, {x = 1, y = 1}}
-    tetrisShapes[1] = {{x = 0, y = 0}, {x = 1, y = 0}, {x = 0, y = 1}, {x = 1, y = 1}}
-    tetrisShapes[2] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 1, y = 0}, {x = 2, y = 0}}
-    tetrisShapes[3] = {{x = -1, y = 0}, {x = 0, y = 0}, {x = 0, y = 1}, {x = 1, y = 1}}
-
     local map = {}
 
-    for i=0,29 do
+    for i=0,maxX do
         map[i] = {}
-        for j=0,16 do
+        for j=0,maxY do
         map[i][j] = false
         end
     end
 
-    local score = createScore()
-    local balls = {createBall(map, score), createBall(map, score)}
-    local target = createTarget(balls, score)
+    local balls = {}
+    local score = createScore(balls)
+    local target = createTarget(balls, map, score)
     local user = createUser(map, tetrisShapes, target)
 
     return {
@@ -228,8 +277,11 @@ function createGameScene()
             score:update()
         end,
         draw = function()
-            for i=0,29 do
-                for j=0,16 do
+            cls(0)
+            rect(0, 0, maxXpix, maxYpix, 2)
+
+            for i=0,maxX do
+                for j=0,maxY do
                     if map[i][j] then spr(0, i * 8, j * 8) end
                 end
             end
@@ -271,6 +323,7 @@ function createGameOverScene(score)
             end
         end,
         draw = function()
+            cls(2)
             print("Your score: " .. score, 10, 10, 15)
             print("Game Over", 10, 40, 15, false, 4)
             print("click to restart", 140, 120, 15)
@@ -306,11 +359,13 @@ function createTitleScene()
             end
         end,
         draw = function()
+            cls(2)
             print("Tetrawall", 10, 10, 15, false, 4)
-            print("Prevent the destruction of the core", 10, 40, 15)
-            print("(the big yellow circle)", 90, 50, 15)
-            print("Left mouse click   - place the wall", 10, 70, 15)
-            print("Right mouse click  - rotate the wall", 10, 80, 15)
+            print("Prevent the destruction of the atom", 10, 40, 15)
+            print("destruction", 78, 40, 5)
+            print("atom", 183, 40, 9)
+            print("Left mouse click   - place the wall", 10, 70, 7)
+            print("Right mouse click  - rotate the wall", 10, 80, 7)
             print("click to start", 140, 120, 15)
         end
     }
@@ -319,7 +374,7 @@ end
 currentScene = createTitleScene()
 
 function TIC()
-    cls(2)
+    cls(0)
     currentScene:update()
     currentScene:draw()
 
