@@ -56,6 +56,11 @@ function rand_v_dir()
     return vx, vy
 end
 
+function printWithShadow(str, x, y, c)
+    print(str, x+1, y+1, 0)
+    print(str, x, y, c)
+end
+
 function createBall(map, score)
     local velocityx, velocityy = rand_v_dir()
 
@@ -298,17 +303,17 @@ end
 function createGameOverScene(score)
     local prevLeft = true
     local prevRight = true
-    local goToGameScene = function()
-        currentScene = createGameScene()
+    local goNext = function()
+        currentScene = createTitleScene()
     end
     return {
         update = function()
-            if btnp() ~= 0 then goToGameScene() end
+            if btnp() ~= 0 then goNext() end
             local x, y, left, middle, right = mouse()
             if left then
                 if not prevLeft then
                     prevLeft = true
-                    goToGameScene()
+                    goNext()
                 end
             else
                 prevLeft = false
@@ -316,7 +321,7 @@ function createGameOverScene(score)
             if right then
                 if not prevRight then
                     prevRight = true
-                    goToGameScene()
+                    goNext()
                 end
             else
                 prevRight = false
@@ -324,9 +329,10 @@ function createGameOverScene(score)
         end,
         draw = function()
             cls(2)
-            print("Your score: " .. score, 10, 10, 15)
+            printWithShadow("Your score: " .. score, 10, 10, 15)
+            print("Game Over", 13, 43, 0, false, 4)
             print("Game Over", 10, 40, 15, false, 4)
-            print("click to restart", 140, 120, 15)
+            printWithShadow("click to restart", 140, 120, 15)
         end
     }
 end
@@ -360,13 +366,19 @@ function createTitleScene()
         end,
         draw = function()
             cls(2)
+            print("Tetrawall", 13, 13, 0, false, 4)
             print("Tetrawall", 10, 10, 15, false, 4)
-            print("Prevent the destruction of the atom", 10, 40, 15)
+            printWithShadow("Prevent the destruction of the atom", 10, 40, 15)
             print("destruction", 78, 40, 5)
             print("atom", 183, 40, 9)
-            print("Left mouse click   - place the wall", 10, 70, 7)
-            print("Right mouse click  - rotate the wall", 10, 80, 7)
-            print("click to start", 140, 120, 15)
+            printWithShadow("Left mouse click", 10, 60, 14)
+            printWithShadow("......... place the wall", 105, 60, 14)
+            printWithShadow("Right mouse click", 10, 70, 14)
+            printWithShadow("......... rotate the wall", 105, 70, 14)
+
+            printWithShadow("Made for OLC CodeJam 2019", 10, 105, 7)
+
+            printWithShadow("click to start", 140, 120, 15)
         end
     }
 end
