@@ -68,6 +68,10 @@ function createShake(intensity, duration)
         start=function(self)
             shake = duration
         end,
+        reset=function(self)
+            shake = 0
+            memset(0x3FF9,0,2)
+        end,
         update=function(self)
             if shake>0 then
                 poke(0x3FF9,math.random(-d,d))
@@ -79,10 +83,9 @@ function createShake(intensity, duration)
     }
 end
 
-
 function createBall(map, score)
     local velocityx, velocityy = rand_v_dir()
-    local shake = createShake(1, 15)
+    local shake = createShake(1, 8)
 
     return {
         x = math.random((maxXpix / 4) * 3, maxXpix - 10),
@@ -162,13 +165,13 @@ function createTarget(balls, map, score)
             local i = 96 + (2 * (math.floor(time()/100) % 8))
             spr(i, self.x-7, self.y-7, 0, 1, 0, 0, 2, 2)
 
-            rect(0, maxYpix, wallProgress, 8, 9)
-            rectb(0, maxYpix, 80, 8, 3)
-            print("NEXT WALL", 2, maxYpix + 1)
+            rect(1, maxYpix+1, 78, 6, 0)
+            rect(1, maxYpix+1, wallProgress-2, 6, 9)
+            printWithShadow("NEXT WALL", 2, maxYpix + 1, 15)
 
-            rect(80, maxYpix, ballProgress, 8, 6)
-            rectb(80, maxYpix, 80, 8, 3)
-            print("NEXT BALL", 82, maxYpix + 1)
+            rect(81, maxYpix+1, 78, 6, 0)
+            rect(81, maxYpix+1, ballProgress-2, 6, 6)
+            printWithShadow("NEXT BALL", 82, maxYpix + 1, 15)
         end
     }
 end
@@ -287,7 +290,8 @@ function createScore(balls)
         draw = function()
             local str = "Score: " .. score
             local w = print(str, 0, -20)
-            print(str, maxXpix - w, maxYpix + 1)
+
+            printWithShadow(str, maxXpix - w - 1, maxYpix + 1, 15)
         end
     }
 end
@@ -319,6 +323,7 @@ function createGameScene()
                 end
                 shake:update()
                 if (time() - hitTime) > 2000 then
+                    shake:reset()
                     currentScene = createGameOverScene(score:getScore())
                 end
             else
@@ -330,7 +335,7 @@ function createGameScene()
             update_psystems()
         end,
         draw = function()
-            cls(0)
+            cls(3)
             rect(0, 0, maxXpix, maxYpix, 2)
 
             for i=0,maxX do
@@ -389,9 +394,11 @@ function createGameOverScene(score)
                 printWithShadow(" NEW RECORD", 10 + w, 10, 14)
             end
             printWithShadow("Top score: " .. topScore, 10, 20, 15)
-            print("Game Over", 13, 43, 0, false, 4)
-            print("Game Over", 10, 40, 15, false, 4)
-            printWithShadow("click to restart", 140, 120, 15)
+            print("Game", 68, 43, 0, false, 4)
+            print("Game", 65, 40, 15, false, 4)
+            print("Over", 68, 73, 0, false, 4)
+            print("Over", 65, 70, 15, false, 4)
+            printWithShadow("click to start", 153, 122, 15)
         end
     }
 end
@@ -425,19 +432,19 @@ function createTitleScene()
         end,
         draw = function()
             cls(2)
-            print("Tetrawall", 13, 13, 0, false, 4)
-            print("Tetrawall", 10, 10, 15, false, 4)
-            printWithShadow("Prevent the destruction of the atom", 10, 40, 15)
-            print("destruction", 78, 40, 5)
-            print("atom", 183, 40, 9)
-            printWithShadow("Left mouse click", 10, 60, 14)
-            printWithShadow("......... place the wall", 105, 60, 14)
-            printWithShadow("Right mouse click", 10, 70, 14)
-            printWithShadow("......... rotate the wall", 105, 70, 14)
+            print("Tetrawall", 18, 13, 0, false, 4)
+            print("Tetrawall", 15, 10, 15, false, 4)
+            printWithShadow("Prevent the destruction of the atom", 19, 40, 15)
+            print("destruction", 87, 40, 5)
+            print("atom", 192, 40, 9)
+            printWithShadow("Left mouse click", 18, 60, 14)
+            printWithShadow("......... place the wall", 110, 60, 14)
+            printWithShadow("Right mouse click", 16, 70, 14)
+            printWithShadow("......... rotate the wall", 110, 70, 14)
 
-            printWithShadow("Made for OLC CodeJam 2019", 10, 105, 7)
-
-            printWithShadow("click to start", 140, 120, 15)
+            printWithShadow("lowcase.itch.io", 5, 118, 7)
+            printWithShadow("OLC CodeJam 2019", 5, 125, 7)
+            printWithShadow("click to start", 153, 122, 15)
         end
     }
 end
@@ -445,13 +452,8 @@ end
 currentScene = createTitleScene()
 
 function TIC()
-    cls(0)
     currentScene:update()
     currentScene:draw()
-
-    --show coordinates
-    --c=string.format('(%f,%f) %i',velx,vely,math.floor((time()/1000)%5))
-    --print(c,0,0,15)
 end
 
 
