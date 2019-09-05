@@ -70,6 +70,9 @@ function createBall(map, score)
         speed = 1,
         velx = velocityx,
         vely = velocityy,
+        isBlocked = function(self, x, y)
+            return (self.x // 8) == x and (self.y // 8) == y
+        end,
         update = function(self)
             self.x = self.x + (self.velx * self.speed)
             self.y = self.y + (self.vely * self.speed)
@@ -101,14 +104,17 @@ function createTarget(balls, map, score)
     local ballTime = time()
     local ready = true
     return {
-        x = math.random(20, maxXpix / 4),
-        y = math.random(20, maxYpix - 20),
+        x = (math.random(20, maxXpix / 4) // 8) * 8,
+        y = (math.random(20, maxYpix - 20) // 8) * 8,
         isReady = function(self)
             return wallProgress == 80
         end,
         start = function(self)
             wallProgress = 0
             wallTime = time()
+        end,
+        isBlocked = function(self, x, y)
+            return ((self.x // 8) == x or (self.x // 8) == x + 1) and ((self.y // 8) == y or (self.y // 8) == y + 1)
         end,
         update = function(self)
             if ballProgress < 80 then
@@ -122,7 +128,7 @@ function createTarget(balls, map, score)
                 wallProgress = math.min(math.floor(((time()-wallTime)/15)), 80)
             end
             for _,ball in pairs(balls) do
-                -- TODO: Calculate distance properly and like these circular things are squares
+                -- TODO: Calculate distance properly and not like these circular things are squares
                 if ball.x > (self.x-6) and ball.y > (self.y-6) and ball.x < (self.x+6) and ball.y < (self.y+6) then
                     currentScene = createGameOverScene(score:getScore())
                 end
@@ -143,7 +149,7 @@ function createTarget(balls, map, score)
     }
 end
 
-function createUser(map, tetrisShapes, target)
+function createUser(map, tetrisShapes, target, balls)
     local drawSquare = function(sprite, x, y)
         if x > maxX or x < 0 or y > maxY or y < 0 then return end
         if map[x][y] then
@@ -154,7 +160,10 @@ function createUser(map, tetrisShapes, target)
     end
 
     local isSquareBlocked = function(x, y)
-        return x > maxX or x < 0 or y > maxY or y < 0 or map[x][y]
+        local isBlocked = false
+        isBlocked = isBlocked or x > maxX or x < 0 or y > maxY or y < 0 or map[x][y] or target:isBlocked(x, y)
+        for _,ball in pairs(balls) do isBlocked = isBlocked or ball:isBlocked(x, y) end
+        return isBlocked
     end
 
     local currentShape = 3;
@@ -272,7 +281,7 @@ function createGameScene()
     local balls = {}
     local score = createScore(balls)
     local target = createTarget(balls, map, score)
-    local user = createUser(map, tetrisShapes, target)
+    local user = createUser(map, tetrisShapes, target, balls)
 
     return {
         update = function()
