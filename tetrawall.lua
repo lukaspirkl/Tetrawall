@@ -58,7 +58,7 @@ end
 
 function printWithShadow(str, x, y, c)
     print(str, x+1, y+1, 0)
-    print(str, x, y, c)
+    return print(str, x, y, c)
 end
 
 function createBall(map, score)
@@ -310,11 +310,17 @@ function createGameScene()
 end
 
 function createGameOverScene(score)
+    local topScore = pmem(0)
     local prevLeft = true
     local prevRight = true
     local goNext = function()
         currentScene = createTitleScene()
     end
+
+    if score > topScore then
+        pmem(0, score)
+    end
+
     return {
         update = function()
             if btnp() ~= 0 then goNext() end
@@ -338,7 +344,11 @@ function createGameOverScene(score)
         end,
         draw = function()
             cls(2)
-            printWithShadow("Your score: " .. score, 10, 10, 15)
+            local w = printWithShadow("Your score: " .. score, 10, 10, 15)
+            if (score > topScore) and ((time()/300)%2 > 1) then
+                printWithShadow(" NEW RECORD", 10 + w, 10, 14)
+            end
+            printWithShadow("Top score: " .. topScore, 10, 20, 15)
             print("Game Over", 13, 43, 0, false, 4)
             print("Game Over", 10, 40, 15, false, 4)
             printWithShadow("click to restart", 140, 120, 15)
