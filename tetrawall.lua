@@ -61,8 +61,28 @@ function printWithShadow(str, x, y, c)
     return print(str, x, y, c)
 end
 
+function createShake(intensity, duration)
+    local shake = 0
+    local d = intensity
+    return {
+        start=function(self)
+            shake = duration
+        end,
+        update=function(self)
+            if shake>0 then
+                poke(0x3FF9,math.random(-d,d))
+                poke(0x3FF9+1,math.random(-d,d))
+                shake=shake-1
+                if shake==0 then memset(0x3FF9,0,2) end
+            end
+        end
+    }
+end
+
+
 function createBall(map, score)
     local velocityx, velocityy = rand_v_dir()
+    local shake = createShake(1, 15)
 
     return {
         x = math.random((maxXpix / 4) * 3, maxXpix - 10),
@@ -74,6 +94,7 @@ function createBall(map, score)
             return (self.x // 8) == x and (self.y // 8) == y
         end,
         update = function(self)
+            shake:update()
             self.x = self.x + (self.velx * self.speed)
             self.y = self.y + (self.vely * self.speed)
 
@@ -84,6 +105,7 @@ function createBall(map, score)
 
             if map[self.x // 8][self.y // 8] then
                 score:add()
+                shake:start()
                 map[self.x // 8][self.y // 8] = false
                 if self.x - (self.velx * self.speed) <= (self.x // 8) * 8 then self.velx = -self.velx end
                 if self.y - (self.vely * self.speed) <= (self.y // 8) * 8 then self.vely = -self.vely end
@@ -106,6 +128,7 @@ function createTarget(balls, map, score)
     return {
         x = (math.random(20, maxXpix / 4) // 8) * 8,
         y = (math.random(20, maxYpix - 20) // 8) * 8,
+        isHit = false,
         isReady = function(self)
             return wallProgress == 80
         end,
@@ -130,7 +153,7 @@ function createTarget(balls, map, score)
             for _,ball in pairs(balls) do
                 -- TODO: Calculate distance properly and not like these circular things are squares
                 if ball.x > (self.x-6) and ball.y > (self.y-6) and ball.x < (self.x+6) and ball.y < (self.y+6) then
-                    currentScene = createGameOverScene(score:getScore())
+                    self.isHit = true
                 end
             end
         end,
@@ -282,13 +305,27 @@ function createGameScene()
     local score = createScore(balls)
     local target = createTarget(balls, map, score)
     local user = createUser(map, tetrisShapes, target, balls)
+    local shake = createShake(6, 99999)
+    local wasHit = false
+    local hitTime = -1
 
     return {
         update = function()
-            user:update()
-            for _,b in pairs(balls)   do b:update() end
-            target:update()
-            score:update()
+            if target.isHit then
+                if hitTime == -1 then
+                    shake:start()
+                    hitTime = time()
+                end
+                shake:update()
+                if (time() - hitTime) > 2000 then
+                    currentScene = createGameOverScene(score:getScore())
+                end
+            else
+                user:update()
+                for _,b in pairs(balls)   do b:update() end
+                target:update()
+                score:update()
+            end
         end,
         draw = function()
             cls(0)
@@ -413,3 +450,4 @@ function TIC()
     --c=string.format('(%f,%f) %i',velx,vely,math.floor((time()/1000)%5))
     --print(c,0,0,15)
 end
+
