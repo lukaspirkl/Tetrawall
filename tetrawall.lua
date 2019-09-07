@@ -1,8 +1,9 @@
--- title:  Tetrawall
--- author: Lowcase
--- desc:   Submission to https://itch.io/jam/olc-codejam-2019
--- script: lua
--- input:  mouse
+-- title:   Tetrawall
+-- author:  Lowcase
+-- desc:    Submission to https://itch.io/jam/olc-codejam-2019
+-- script:  lua
+-- input:   mouse
+-- version: 1.0
 
 maxX = 29
 maxY = 15
@@ -87,9 +88,14 @@ function createBall(map, score)
     local velocityx, velocityy = rand_v_dir()
     local shake = createShake(1, 8)
 
+    local startx = math.random((maxXpix / 4) * 3, maxXpix - 10)
+    local starty = math.random(10, maxYpix - 10)
+    make_magicsparks_ps(startx, starty)
+    sfx(5, "E-4")
+
     return {
-        x = math.random((maxXpix / 4) * 3, maxXpix - 10),
-        y = math.random(10, maxYpix - 10),
+        x = startx,
+        y = starty,
         speed = 1,
         velx = velocityx,
         vely = velocityy,
@@ -101,14 +107,27 @@ function createBall(map, score)
             self.x = self.x + (self.velx * self.speed)
             self.y = self.y + (self.vely * self.speed)
 
-            if self.x <= 3 then self.velx = -self.velx end
-            if self.y <= 3 then self.vely = -self.vely end
-            if self.x >= maxXpix - 3 then self.velx = -self.velx end
-            if self.y >= maxYpix - 3 then self.vely = -self.vely end
+            if self.x <= 3 then
+                sfx(4, "E-1")
+                self.velx = -self.velx
+            end
+            if self.y <= 3 then
+                sfx(4, "E-1")
+                self.vely = -self.vely
+            end
+            if self.x >= maxXpix - 3 then
+                sfx(4, "E-1")
+                self.velx = -self.velx
+            end
+            if self.y >= maxYpix - 3 then
+                sfx(4, "E-1")
+                self.vely = -self.vely
+            end
 
             if map[self.x // 8][self.y // 8] then
                 score:add()
                 shake:start()
+                sfx(0, "E-1")
                 make_sparks_ps(self.x, self.y)
                 map[self.x // 8][self.y // 8] = false
                 if self.x - (self.velx * self.speed) <= (self.x // 8) * 8 then self.velx = -self.velx end
@@ -226,23 +245,28 @@ function createUser(map, tetrisShapes, target, balls)
                 end
             end
 
-            if left and self.free then
+            if left then
                 if not self.prevLeft then
                     self.prevLeft = true
-                    canDraw = false
-                    target:start()
-                    for _, square in pairs(tetrisShapes[currentShape]) do
-                        if self.rotation == 0 then
-                            map[(self.x + square.x)][(self.y + square.y)] = true
-                        elseif self.rotation == 1 then
-                            map[(self.x - square.y)][(self.y + square.x)] = true
-                        elseif self.rotation == 2 then
-                            map[(self.x - square.x)][(self.y - square.y)] = true
-                        elseif self.rotation == 3 then
-                            map[(self.x + square.y)][(self.y - square.x)] = true
+                    if self.free then
+                        canDraw = false
+                        target:start()
+                        sfx(1, "E-2")
+                        for _, square in pairs(tetrisShapes[currentShape]) do
+                            if self.rotation == 0 then
+                                map[(self.x + square.x)][(self.y + square.y)] = true
+                            elseif self.rotation == 1 then
+                                map[(self.x - square.y)][(self.y + square.x)] = true
+                            elseif self.rotation == 2 then
+                                map[(self.x - square.x)][(self.y - square.y)] = true
+                            elseif self.rotation == 3 then
+                                map[(self.x + square.y)][(self.y - square.x)] = true
+                            end
                         end
+                        currentShape = math.random(0, #tetrisShapes)
+                    else
+                        sfx(2, "E-3")
                     end
-                    currentShape = math.random(0, #tetrisShapes)
                 end
             else
                 self.prevLeft = false
@@ -250,6 +274,7 @@ function createUser(map, tetrisShapes, target, balls)
 
             if right then
                 if not self.prevRight then
+                    sfx(1, "E-4")
                     self.prevRight = true
                     self.rotation = (self.rotation + 1) % 4;
                 end
@@ -310,7 +335,7 @@ function createGameScene()
     local score = createScore(balls)
     local target = createTarget(balls, map, score)
     local user = createUser(map, tetrisShapes, target, balls)
-    local shake = createShake(6, 99999)
+    local shake = createShake(6, 120)
     local wasHit = false
     local hitTime = -1
 
@@ -320,6 +345,7 @@ function createGameScene()
                 if hitTime == -1 then
                     shake:start()
                     hitTime = time()
+                    sfx(3, "E-3", 120)
                 end
                 shake:update()
                 if (time() - hitTime) > 2000 then
@@ -359,6 +385,7 @@ function createGameOverScene(score)
     local prevLeft = true
     local prevRight = true
     local goNext = function()
+        sfx(5, "E-4")
         currentScene = createTitleScene()
     end
 
@@ -444,6 +471,7 @@ function createTitleScene()
 
             printWithShadow("lowcase.itch.io", 5, 118, 7)
             printWithShadow("OLC CodeJam 2019", 5, 125, 7)
+
             printWithShadow("click to start", 153, 122, 15)
         end
     }
@@ -793,6 +821,37 @@ end
 --==================================================================================--
 -- SAMPLES PARTICLE SYSTEMS ========================================================--
 --==================================================================================--
+
+function make_magicsparks_ps(ex,ey)
+	local ps = make_psystem(300,1700, 1,5,1,5)
+
+	table.insert(ps.emittimers,
+		{
+			timerfunc = emittimer_burst,
+			params = { num = 10}
+		}
+	)
+	table.insert(ps.emitters,
+		{
+			emitfunc = emitter_box,
+			params = { minx = ex-8, maxx = ex+8, miny = ey-8, maxy= ey+8, minstartvx = -1.5, maxstartvx = 1.5, minstartvy = -3, maxstartvy=-2 }
+		}
+	)
+	table.insert(ps.drawfuncs,
+		{
+			drawfunc = draw_ps_rndspr,
+			params = { frames = {32,33,34,35,36} }
+			-- params = { frames = {32,33,34,35,36}, colors = {8,9,11,12,14} }
+		}
+	)
+	table.insert(ps.affectors,
+		{
+			affectfunc = affect_force,
+			params = { fx = 0, fy = 0.3 }
+		}
+	)
+
+end
 
 function make_sparks_ps(ex,ey)
 	local ps = make_psystem(300,700, 1,2, 0.5,0.5)
